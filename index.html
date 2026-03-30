@@ -47,6 +47,8 @@
   .btn-plus { color: #5cb85c; border-color: #c3e6cb; background: #f0fff4; }
   .btn-log { font-size: 10px; color: #999; font-weight: 400; letter-spacing: 1px; }
   .btn-delete { font-size: 10px; color: #d9534f; border-color: #ffd7d7; background: #fff1f1; letter-spacing: 1px; }
+  .btn-watch { font-size: 10px; color: #5a67d8; border-color: #d9e0ff; background: #f3f5ff; letter-spacing: 1px; }
+  .btn-watch.active { color: #fff; border-color: #667eea; background: #667eea; }
   .qty-input { width: 44px; height: 32px; border-radius: 8px; border: 1px solid #e0e0e0; text-align: center; font-size: 14px; font-weight: 600; outline: none; }
   .qty-input:focus { border-color: #764ba2; }
 
@@ -90,6 +92,25 @@
   .overview-tag-color { font-size: 12px; color: #555; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .overview-tag-num { min-width: 28px; font-size: 18px; font-weight: 700; text-align: right; }
   .overview-empty-label { font-size: 12px; letter-spacing: 1px; }
+  .monitor-panel { margin-bottom: 12px; padding: 12px; border-radius: 12px; background: #f8faff; border: 1px solid #dfe7ff; }
+  .monitor-panel-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .monitor-panel-title { font-size: 13px; font-weight: 700; color: #334; }
+  .monitor-panel-meta { font-size: 11px; color: #7a83a2; }
+  .monitor-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px; }
+  .monitor-item { display: flex; justify-content: space-between; gap: 10px; padding: 10px; border-radius: 10px; background: #fff; border: 1px solid #e7ecfb; }
+  .monitor-item-main { min-width: 0; }
+  .monitor-item-title { display: flex; align-items: center; gap: 6px; min-width: 0; }
+  .monitor-item-name { font-size: 12px; font-weight: 600; color: #334; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .monitor-item-id { font-family: 'Bahnschrift', 'DIN Alternate', 'Segoe UI', sans-serif; font-size: 12px; color: #5d6785; }
+  .monitor-item-detail { margin-top: 4px; font-size: 11px; color: #7a83a2; line-height: 1.5; }
+  .monitor-item-stock { text-align: right; flex-shrink: 0; }
+  .monitor-stock-num { font-size: 20px; font-weight: 700; line-height: 1; }
+  .monitor-stock-label { margin-top: 3px; font-size: 10px; color: #99a; }
+  .monitor-badge { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 999px; font-size: 10px; font-weight: 600; margin-top: 6px; }
+  .monitor-badge.low { color: #b04a46; background: #fff1f1; }
+  .monitor-badge.zero { color: #999; background: #f2f3f6; }
+  .monitor-badge.ok { color: #477a47; background: #eef9ee; }
+  .monitor-empty { font-size: 12px; color: #8a91a7; line-height: 1.7; }
   .overview.mobile-compact { padding: 14px 12px; }
   .overview-head.mobile-compact { gap: 10px; }
   .overview-tip.mobile-compact { font-size: 10px; }
@@ -104,6 +125,15 @@
   .overview-tag-color.mobile-compact { font-size: 11px; max-width: 42px; }
   .overview-tag-num.mobile-compact { min-width: 20px; font-size: 15px; }
   .overview-empty-label.mobile-compact { font-size: 11px; letter-spacing: 0; }
+  .monitor-panel.mobile-compact { padding: 10px; margin-bottom: 10px; }
+  .monitor-panel-head.mobile-compact { align-items: flex-start; flex-direction: column; gap: 4px; }
+  .monitor-list.mobile-compact { grid-template-columns: 1fr; gap: 6px; }
+  .monitor-item.mobile-compact { padding: 8px; }
+  .monitor-item-name.mobile-compact { font-size: 11px; }
+  .monitor-item-id.mobile-compact { font-size: 11px; }
+  .monitor-item-detail.mobile-compact { font-size: 10px; }
+  .monitor-stock-num.mobile-compact { font-size: 17px; }
+  .monitor-badge.mobile-compact { font-size: 9px; height: 18px; padding: 0 7px; }
 
   .reset-btn { display: block; margin: 24px auto 0; padding: 8px 20px; border-radius: 10px; border: 1px solid #e0e0e0; background: #fff; font-size: 11px; color: #999; cursor: pointer; }
   .empty-msg { text-align: center; padding: 40px 0; color: #ccc; font-size: 13px; }
@@ -205,6 +235,7 @@ const MIN_EMPTY_SLOTS = 3;
 let products = [];
 let logs = [];
 let overviewOrder = [];
+let watchedIds = [];
 let draggingOverviewId = '';
 let selectedOverviewId = '';
 let overviewEmptySeed = 0;
@@ -218,6 +249,33 @@ let lastCompactMobileMode = null;
 function isCompactMobileMode() {
   if (typeof window === 'undefined') return false;
   return window.innerWidth <= 640 || (IS_TOUCH_DEVICE && window.innerWidth <= 900);
+}
+
+function syncWatchedIds() {
+  const validIds = new Set(products.map(product => product.id));
+  watchedIds = Array.isArray(watchedIds)
+    ? watchedIds.filter((id, index) => typeof id === 'string' && validIds.has(id) && watchedIds.indexOf(id) === index)
+    : [];
+}
+
+function getLatestLogForProduct(id) {
+  for (let i = logs.length - 1; i >= 0; i -= 1) {
+    if (logs[i].productId === id) {
+      return logs[i];
+    }
+  }
+  return null;
+}
+
+function toggleWatch(id) {
+  if (!id) return;
+  if (watchedIds.includes(id)) {
+    watchedIds = watchedIds.filter(item => item !== id);
+  } else {
+    watchedIds.push(id);
+  }
+  save();
+  render();
 }
 
 function storageGet(key) {
@@ -332,22 +390,28 @@ function load() {
     const storedProducts = storageGet('pvc-products');
     const storedLogs = storageGet('pvc-logs');
     const storedOverviewOrder = storageGet('pvc-overview-order');
+    const storedWatchedIds = storageGet('pvc-watched-products');
     products = storedProducts ? JSON.parse(storedProducts) : cloneDefaults();
     logs = storedLogs ? JSON.parse(storedLogs) : [];
     overviewOrder = storedOverviewOrder ? JSON.parse(storedOverviewOrder) : [];
+    watchedIds = storedWatchedIds ? JSON.parse(storedWatchedIds) : [];
   } catch (error) {
     products = cloneDefaults();
     logs = [];
     overviewOrder = [];
+    watchedIds = [];
   }
   syncOverviewOrder();
+  syncWatchedIds();
 }
 
 function save() {
   syncOverviewOrder();
+  syncWatchedIds();
   storageSet('pvc-products', JSON.stringify(products));
   storageSet('pvc-logs', JSON.stringify(logs));
   storageSet('pvc-overview-order', JSON.stringify(overviewOrder));
+  storageSet('pvc-watched-products', JSON.stringify(watchedIds));
 }
 
 function getExportFileStamp() {
@@ -364,7 +428,8 @@ function buildExportData() {
     exportedAt: new Date().toISOString(),
     products,
     logs,
-    overviewOrder
+    overviewOrder,
+    watchedIds
   };
 }
 
@@ -454,6 +519,9 @@ function applyImportedData(data) {
   const nextOverviewOrder = Array.isArray(data && data.overviewOrder)
     ? data.overviewOrder.filter(item => typeof item === 'string')
     : [];
+  const nextWatchedIds = Array.isArray(data && data.watchedIds)
+    ? data.watchedIds.filter(item => typeof item === 'string')
+    : [];
 
   if (!confirm('导入会覆盖当前页面里的库存、记录和库位布局，是否继续？')) {
     return;
@@ -462,6 +530,7 @@ function applyImportedData(data) {
   products = nextProducts;
   logs = nextLogs;
   overviewOrder = nextOverviewOrder;
+  watchedIds = nextWatchedIds;
   selectedOverviewId = '';
   draggingOverviewId = '';
   overviewEmptySeed = 0;
@@ -657,6 +726,7 @@ function render() {
             <input class="qty-input" type="number" id="qty-${safeId}" value="1" min="1">
             <button class="btn-sm btn-plus" onclick="adjustStock('${safeId}', 1)">+</button>
             <button class="btn-sm btn-log" onclick="openLogModal('${safeId}')">记录</button>
+            <button class="btn-sm btn-watch${watchedIds.includes(product.id) ? ' active' : ''}" onclick="toggleWatch('${safeId}')">${watchedIds.includes(product.id) ? '监控中' : '监控'}</button>
             <button class="btn-sm btn-delete" onclick="deleteProduct('${safeId}')">删除</button>
           </div>
         </td>
@@ -676,7 +746,70 @@ function render() {
   const overviewActionsClass = `overview-actions${isCompactMobile ? ' mobile-compact' : ''}`;
   const overviewBtnClass = `overview-btn${isCompactMobile ? ' mobile-compact' : ''}`;
 
-  let overviewHtml = `
+  const monitorPanelClass = `monitor-panel${isCompactMobile ? ' mobile-compact' : ''}`;
+  const monitorPanelHeadClass = `monitor-panel-head${isCompactMobile ? ' mobile-compact' : ''}`;
+  const monitorListClass = `monitor-list${isCompactMobile ? ' mobile-compact' : ''}`;
+  const monitorItemClass = `monitor-item${isCompactMobile ? ' mobile-compact' : ''}`;
+  const monitorItemNameClass = `monitor-item-name${isCompactMobile ? ' mobile-compact' : ''}`;
+  const monitorItemIdClass = `monitor-item-id${isCompactMobile ? ' mobile-compact' : ''}`;
+  const monitorItemDetailClass = `monitor-item-detail${isCompactMobile ? ' mobile-compact' : ''}`;
+  const monitorStockNumClass = `monitor-stock-num${isCompactMobile ? ' mobile-compact' : ''}`;
+  const monitorBadgeClass = `monitor-badge${isCompactMobile ? ' mobile-compact' : ''}`;
+
+  let overviewHtml = '';
+  if (watchedProducts.length === 0) {
+    overviewHtml += `<div class="${monitorPanelClass}">
+      <div class="${monitorPanelHeadClass}">
+        <div>
+          <div class="monitor-panel-title">重点监控</div>
+          <div class="monitor-panel-meta">把需要盯住的颜色加入这里，库存变化时更容易看到。</div>
+        </div>
+      </div>
+      <div class="monitor-empty">点表格里的“监控”按钮后，关注的库存会显示在这里。</div>
+    </div>`;
+  } else {
+    const lowCount = watchedProducts.filter(product => product.stock > 0 && product.stock < 10).length;
+    const zeroCount = watchedProducts.filter(product => product.stock === 0).length;
+    overviewHtml += `<div class="${monitorPanelClass}">
+      <div class="${monitorPanelHeadClass}">
+        <div>
+          <div class="monitor-panel-title">重点监控</div>
+          <div class="monitor-panel-meta">共 ${watchedProducts.length} 个关注项 · 低库存 ${lowCount} 个 · 缺货 ${zeroCount} 个</div>
+        </div>
+      </div>
+      <div class="${monitorListClass}">`;
+
+    watchedProducts.forEach(product => {
+      const latestLog = getLatestLogForProduct(product.id);
+      const safeId = escapeHtml(product.id);
+      const safeColor = escapeHtml(product.color);
+      const safeHex = escapeHtml(product.hex);
+      const changeText = latestLog
+        ? `${latestLog.amount > 0 ? '+' : ''}${latestLog.amount} 袋 · ${fmtTime(latestLog.timestamp)}`
+        : '暂无变化记录';
+      const badgeType = product.stock === 0 ? 'zero' : product.stock < 10 ? 'low' : 'ok';
+      const badgeText = product.stock === 0 ? '缺货' : product.stock < 10 ? '低库存' : '正常';
+      overviewHtml += `<div class="${monitorItemClass}">
+        <div class="monitor-item-main">
+          <div class="monitor-item-title">
+            <span class="overview-swatch" style="background:${safeHex};"></span>
+            <span class="${monitorItemNameClass}">${safeColor}</span>
+            <span class="${monitorItemIdClass}">${safeId}</span>
+          </div>
+          <div class="${monitorItemDetailClass}">最近变化：${changeText}</div>
+          <div class="${monitorBadgeClass} ${badgeType}">${badgeText}</div>
+        </div>
+        <div class="monitor-item-stock">
+          <div class="${monitorStockNumClass} ${product.stock === 0 ? 'stock-zero' : product.stock < 10 ? 'stock-low' : 'stock-ok'}">${product.stock}</div>
+          <div class="monitor-stock-label">袋</div>
+        </div>
+      </div>`;
+    });
+
+    overviewHtml += '</div></div>';
+  }
+
+  overviewHtml += `
     <div class="${overviewHeadClass}">
       <div>
         <h4>库存概览</h4>
@@ -892,6 +1025,9 @@ window.addEventListener('resize', handleViewportChange, { passive: true });
 </script>
 </body>
 </html>
+
+
+
 
 
 
