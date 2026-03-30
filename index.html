@@ -90,6 +90,20 @@
   .overview-tag-color { font-size: 12px; color: #555; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .overview-tag-num { min-width: 28px; font-size: 18px; font-weight: 700; text-align: right; }
   .overview-empty-label { font-size: 12px; letter-spacing: 1px; }
+  .overview.mobile-compact { padding: 14px 12px; }
+  .overview-head.mobile-compact { gap: 10px; }
+  .overview-tip.mobile-compact { font-size: 10px; }
+  .overview-actions.mobile-compact { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; gap: 6px; }
+  .overview-btn.mobile-compact { width: 100%; height: 34px; padding: 0 10px; font-size: 12px; }
+  .overview-board.mobile-compact { display: grid; grid-template-columns: repeat(3, minmax(96px, 1fr)); width: 100%; gap: 6px; }
+  .overview-slot.mobile-compact { width: auto; min-height: 48px; padding: 7px 8px; gap: 6px; border-radius: 9px; }
+  .overview-slot-main.mobile-compact { gap: 6px; }
+  .overview-swatch.mobile-compact { width: 10px; height: 10px; }
+  .overview-slot-text.mobile-compact { gap: 4px; }
+  .overview-tag-id.mobile-compact { font-size: 12px; letter-spacing: 0.1px; }
+  .overview-tag-color.mobile-compact { font-size: 11px; max-width: 42px; }
+  .overview-tag-num.mobile-compact { min-width: 20px; font-size: 15px; }
+  .overview-empty-label.mobile-compact { font-size: 11px; letter-spacing: 0; }
 
   .reset-btn { display: block; margin: 24px auto 0; padding: 8px 20px; border-radius: 10px; border: 1px solid #e0e0e0; background: #fff; font-size: 11px; color: #999; cursor: pointer; }
   .empty-msg { text-align: center; padding: 40px 0; color: #ccc; font-size: 13px; }
@@ -199,6 +213,12 @@ const IS_TOUCH_DEVICE = (typeof window !== 'undefined') && (
   (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ||
   (navigator && navigator.maxTouchPoints > 0)
 );
+let lastCompactMobileMode = null;
+
+function isCompactMobileMode() {
+  if (typeof window === 'undefined') return false;
+  return window.innerWidth <= 640 || (IS_TOUCH_DEVICE && window.innerWidth <= 900);
+}
 
 function storageGet(key) {
   try {
@@ -597,6 +617,7 @@ function clearTrailingEmptySlots() {
 function render() {
   syncOverviewOrder();
 
+  const isCompactMobile = isCompactMobileMode();
   const search = document.getElementById('searchInput').value.trim().toLowerCase();
   const filtered = products
     .filter(product => !search || product.id.toLowerCase().includes(search) || product.color.toLowerCase().includes(search))
@@ -648,20 +669,25 @@ function render() {
 
   const tipText = selectedOverviewId
     ? '已选中一个位置，再点另一个位置即可互换。'
-    : (IS_TOUCH_DEVICE ? '手机模式已启用：轻点两个位置可互换，不使用拖拽。' : '固定三排显示。电脑可拖到空位或别的位置，手机可点两个位置互换。');
+    : (isCompactMobile ? '手机简化模式：轻点两个位置互换。' : (IS_TOUCH_DEVICE ? '手机模式已启用：轻点两个位置可互换，不使用拖拽。' : '固定三排显示。电脑可拖到空位或别的位置，手机可点两个位置互换。'));
+  const overviewClass = `overview${isCompactMobile ? ' mobile-compact' : ''}`;
+  const overviewHeadClass = `overview-head${isCompactMobile ? ' mobile-compact' : ''}`;
+  const overviewTipClass = `overview-tip${isCompactMobile ? ' mobile-compact' : ''}`;
+  const overviewActionsClass = `overview-actions${isCompactMobile ? ' mobile-compact' : ''}`;
+  const overviewBtnClass = `overview-btn${isCompactMobile ? ' mobile-compact' : ''}`;
 
   let overviewHtml = `
-    <div class="overview-head">
+    <div class="${overviewHeadClass}">
       <div>
         <h4>库存概览</h4>
-        <div class="overview-tip">${tipText}</div>
+        <div class="${overviewTipClass}">${tipText}</div>
       </div>
-      <div class="overview-actions">
-        <button class="overview-btn" onclick="exportData()">导出数据</button>
-        <button class="overview-btn" onclick="triggerImport()">导入数据</button>
-        <button class="overview-btn" onclick="addEmptySlot()">增加空位</button>
-        <button class="overview-btn" onclick="clearTrailingEmptySlots()">清理尾部空位</button>
-        <button class="overview-btn" onclick="resetOverviewLayout()">恢复编号顺序</button>
+      <div class="${overviewActionsClass}">
+        <button class="${overviewBtnClass}" onclick="exportData()">${isCompactMobile ? '导出' : '导出数据'}</button>
+        <button class="${overviewBtnClass}" onclick="triggerImport()">${isCompactMobile ? '导入' : '导入数据'}</button>
+        <button class="${overviewBtnClass}" onclick="addEmptySlot()">${isCompactMobile ? '加空位' : '增加空位'}</button>
+        <button class="${overviewBtnClass}" onclick="clearTrailingEmptySlots()">${isCompactMobile ? '清尾空位' : '清理尾部空位'}</button>
+        <button class="${overviewBtnClass}" onclick="resetOverviewLayout()">${isCompactMobile ? '恢复顺序' : '恢复编号顺序'}</button>
       </div>
     </div>`;
 
@@ -670,7 +696,17 @@ function render() {
   } else {
     const columns = OVERVIEW_ROWS;
     const rows = Math.max(1, Math.ceil(overviewOrder.length / columns));
-    overviewHtml += `<div class="overview-board-wrap"><div class="overview-board" style="grid-template-rows: repeat(${rows}, minmax(54px, auto));">`;
+    const overviewBoardClass = `overview-board${isCompactMobile ? ' mobile-compact' : ''}`;
+    const slotClass = `overview-slot${isCompactMobile ? ' mobile-compact' : ''}`;
+    const slotMainClass = `overview-slot-main${isCompactMobile ? ' mobile-compact' : ''}`;
+    const slotTextClass = `overview-slot-text${isCompactMobile ? ' mobile-compact' : ''}`;
+    const swatchClass = `overview-swatch${isCompactMobile ? ' mobile-compact' : ''}`;
+    const colorClass = `overview-tag-color${isCompactMobile ? ' mobile-compact' : ''}`;
+    const idClass = `overview-tag-id${isCompactMobile ? ' mobile-compact' : ''}`;
+    const numClassName = `overview-tag-num${isCompactMobile ? ' mobile-compact' : ''}`;
+    const emptyLabelClass = `overview-empty-label${isCompactMobile ? ' mobile-compact' : ''}`;
+    const rowHeight = isCompactMobile ? 48 : 54;
+    overviewHtml += `<div class="overview-board-wrap"><div class="${overviewBoardClass}" style="grid-template-rows: repeat(${rows}, minmax(${rowHeight}px, auto));">`;
 
     overviewOrder.forEach((slotId, index) => {
       const row = index % rows + 1;
@@ -681,33 +717,35 @@ function render() {
       if (product) {
         const numClass = product.stock < 10 ? 'stock-low' : '';
         const safeId = escapeHtml(product.id);
-        const dragAttrs = IS_TOUCH_DEVICE
+        const dragAttrs = isCompactMobile
           ? ''
           : ` draggable="true" ondragstart="handleOverviewDragStart(event, '${safeId}')" ondragover="handleOverviewDragOver(event)" ondrop="handleOverviewDrop(event, '${safeId}')" ondragend="handleOverviewDragEnd()"`;
-        overviewHtml += `<button type="button" class="overview-slot product-slot${isSelected}" style="grid-row:${row};grid-column:${column};"${dragAttrs} onclick="selectOverviewSlot('${safeId}')">
-          <span class="overview-slot-main">
-            <span class="overview-swatch" style="background:${escapeHtml(product.hex)};"></span>
-            <span class="overview-slot-text">
-              <span class="overview-tag-color">${escapeHtml(product.color)}</span>
-              <span class="overview-tag-id">${safeId}</span>
+        overviewHtml += `<button type="button" class="${slotClass} product-slot${isSelected}" style="grid-row:${row};grid-column:${column};"${dragAttrs} onclick="selectOverviewSlot('${safeId}')">
+          <span class="${slotMainClass}">
+            <span class="${swatchClass}" style="background:${escapeHtml(product.hex)};"></span>
+            <span class="${slotTextClass}">
+              <span class="${colorClass}">${escapeHtml(product.color)}</span>
+              <span class="${idClass}">${safeId}</span>
             </span>
           </span>
-          <span class="overview-tag-num ${numClass}">${product.stock}</span>
+          <span class="${numClassName} ${numClass}">${product.stock}</span>
         </button>`;
       } else {
         const safeSlotId = escapeHtml(slotId);
-        const emptyDragAttrs = IS_TOUCH_DEVICE
+        const emptyDragAttrs = isCompactMobile
           ? ''
           : ` ondragover="handleOverviewDragOver(event)" ondrop="handleOverviewDrop(event, '${safeSlotId}')"`;
-        overviewHtml += `<button type="button" class="overview-slot empty-slot${isSelected}" style="grid-row:${row};grid-column:${column};"${emptyDragAttrs} onclick="selectOverviewSlot('${safeSlotId}')">
-          <span class="overview-empty-label">空位</span>
+        overviewHtml += `<button type="button" class="${slotClass} empty-slot${isSelected}" style="grid-row:${row};grid-column:${column};"${emptyDragAttrs} onclick="selectOverviewSlot('${safeSlotId}')">
+          <span class="${emptyLabelClass}">空位</span>
         </button>`;
       }
     });
 
     overviewHtml += '</div></div>';
   }
-  document.getElementById('overview').innerHTML = overviewHtml;
+  const overviewEl = document.getElementById('overview');
+  overviewEl.className = overviewClass;
+  overviewEl.innerHTML = overviewHtml;
 }
 
 function openAddModal() {
@@ -829,6 +867,7 @@ function registerServiceWorker() {
 function initApp() {
   try {
     load();
+    lastCompactMobileMode = isCompactMobileMode();
     render();
     registerServiceWorker();
   } catch (error) {
@@ -837,14 +876,27 @@ function initApp() {
   }
 }
 
+function handleViewportChange() {
+  const compactMode = isCompactMobileMode();
+  if (compactMode === lastCompactMobileMode) return;
+  lastCompactMobileMode = compactMode;
+  render();
+}
+
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initApp, { once: true });
 } else {
   initApp();
 }
+window.addEventListener('resize', handleViewportChange, { passive: true });
 </script>
 </body>
 </html>
+
+
+
+
+
 
 
 
