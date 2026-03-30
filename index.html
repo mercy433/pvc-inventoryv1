@@ -692,6 +692,10 @@ function render() {
     .filter(product => !search || product.id.toLowerCase().includes(search) || product.color.toLowerCase().includes(search))
     .slice()
     .sort(compareProducts);
+  const watchedProducts = products
+    .filter(product => watchedIds.includes(product.id))
+    .slice()
+    .sort(compareProducts);
   const total = products.reduce((sum, product) => sum + product.stock, 0);
 
   document.getElementById('headerInfo').textContent = `共 ${products.length} 个品种 · 总库存 ${total} 袋`;
