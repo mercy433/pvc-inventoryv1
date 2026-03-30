@@ -1,0 +1,853 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#667eea">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="PVC库存">
+<title>PVC成品料库存管理</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/pvc-icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/pvc-icon-180.png">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif; background: #f5f6fa; color: #333; min-height: 100vh; -webkit-text-size-adjust: 100%; }
+
+  .header { background: linear-gradient(135deg, #667eea, #764ba2); padding: 36px 16px 28px; border-radius: 0 0 20px 20px; color: #fff; }
+  .header-sub { font-size: 11px; opacity: 0.6; letter-spacing: 3px; margin-bottom: 6px; }
+  .header h1 { font-size: 22px; font-weight: 700; letter-spacing: 2px; margin-bottom: 4px; }
+  .header-info { font-size: 12px; opacity: 0.75; }
+
+  .search-bar { display: flex; gap: 8px; margin: -18px 12px 0; position: relative; z-index: 10; }
+  .search-input { flex: 1; height: 44px; border-radius: 12px; border: none; padding: 0 16px; font-size: 14px; background: #fff; box-shadow: 0 3px 12px rgba(0,0,0,0.08); outline: none; }
+  .btn-add { width: 44px; height: 44px; border-radius: 12px; border: none; background: #fff; box-shadow: 0 3px 12px rgba(0,0,0,0.08); font-size: 22px; color: #764ba2; cursor: pointer; font-weight: 700; }
+
+  .container { max-width: 920px; margin: 0 auto; padding: 16px 12px 80px; }
+
+  .stock-table { width: 100%; border-collapse: separate; border-spacing: 0; background: #fff; border-radius: 14px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.04); margin-top: 16px; }
+  .stock-table th { background: #f8f9fb; padding: 10px 12px; font-size: 11px; color: #999; font-weight: 600; text-align: center; letter-spacing: 1px; border-bottom: 1px solid #eee; }
+  .stock-table th:first-child, .stock-table td:first-child { text-align: left; }
+  .stock-table td { padding: 10px 12px; font-size: 14px; text-align: center; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+  .stock-table tr:last-child td { border-bottom: none; }
+
+  .color-dot { display: inline-block; width: 12px; height: 12px; border-radius: 3px; border: 1px solid #ddd; vertical-align: middle; margin-right: 6px; }
+  .stock-num { font-size: 18px; font-weight: 700; }
+  .stock-low { color: #d9534f; }
+  .stock-zero { color: #ccc; }
+  .stock-ok { color: #333; }
+
+  .id-text { font-family: 'Bahnschrift', 'DIN Alternate', 'Segoe UI', sans-serif; font-size: 15px; font-weight: 600; color: #444; margin-left: 8px; letter-spacing: 0.3px; }
+
+  .btn-group { display: flex; gap: 4px; justify-content: center; align-items: center; flex-wrap: wrap; }
+  .btn-sm { min-width: 32px; height: 32px; border-radius: 8px; border: 1px solid #e0e0e0; background: #fff; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: 700; padding: 0 8px; }
+  .btn-minus { color: #d9534f; border-color: #ffcccc; background: #fff5f5; }
+  .btn-plus { color: #5cb85c; border-color: #c3e6cb; background: #f0fff4; }
+  .btn-log { font-size: 10px; color: #999; font-weight: 400; letter-spacing: 1px; }
+  .btn-delete { font-size: 10px; color: #d9534f; border-color: #ffd7d7; background: #fff1f1; letter-spacing: 1px; }
+  .qty-input { width: 44px; height: 32px; border-radius: 8px; border: 1px solid #e0e0e0; text-align: center; font-size: 14px; font-weight: 600; outline: none; }
+  .qty-input:focus { border-color: #764ba2; }
+
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
+  .modal-overlay.active { display: flex; }
+  .modal { background: #fff; border-radius: 18px; padding: 24px; width: 100%; max-width: 360px; box-shadow: 0 20px 60px rgba(0,0,0,0.15); }
+  .modal h3 { font-size: 17px; margin-bottom: 16px; color: #333; }
+  .modal label { font-size: 11px; color: #999; display: block; margin-bottom: 4px; margin-top: 12px; }
+  .modal input[type=text] { width: 100%; height: 40px; border-radius: 10px; border: 1px solid #e0e0e0; padding: 0 12px; font-size: 14px; outline: none; }
+  .modal input[type=text]:focus { border-color: #764ba2; }
+  .modal input[type=color] { width: 48px; height: 40px; border: none; border-radius: 8px; cursor: pointer; }
+  .modal-btns { display: flex; gap: 8px; margin-top: 20px; }
+  .btn-confirm { flex: 1; height: 42px; border-radius: 10px; border: none; background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .btn-cancel { height: 42px; padding: 0 18px; border-radius: 10px; border: 1px solid #e0e0e0; background: #fff; color: #666; font-size: 13px; cursor: pointer; }
+
+  .log-list { max-height: 50vh; overflow-y: auto; }
+  .log-item { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
+  .log-item:last-child { border-bottom: none; }
+  .log-amount-pos { font-size: 15px; font-weight: 600; color: #5cb85c; }
+  .log-amount-neg { font-size: 15px; font-weight: 600; color: #d9534f; }
+  .log-detail { font-size: 11px; color: #bbb; margin-top: 2px; }
+  .log-time { font-size: 11px; color: #999; font-family: monospace; text-align: right; }
+
+  .overview { background: #fff; border-radius: 14px; padding: 16px; margin-top: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+  .overview-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 10px; }
+  .overview h4 { font-size: 13px; font-weight: 600; margin-bottom: 4px; color: #333; }
+  .overview-tip { font-size: 11px; color: #999; line-height: 1.5; }
+  .overview-actions { display: flex; gap: 8px; flex-wrap: wrap; flex-shrink: 0; }
+  .overview-btn { height: 30px; padding: 0 12px; border-radius: 999px; border: 1px solid #e0e0e0; background: #fff; color: #666; font-size: 12px; cursor: pointer; -webkit-appearance: none; appearance: none; }
+  .overview-board-wrap { overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
+  .overview-board { display: inline-grid; grid-template-columns: repeat(3, 158px); gap: 8px; }
+  .overview-slot { width: 158px; min-height: 54px; padding: 8px 10px; border-radius: 10px; border: 1px solid #e4e7ec; background: #fbfcfd; display: flex; align-items: center; justify-content: space-between; gap: 8px; color: #555; cursor: pointer; user-select: none; -webkit-appearance: none; appearance: none; }
+  .overview-slot.product-slot { cursor: grab; }
+  .overview-slot.product-slot:active { cursor: grabbing; }
+  .overview-slot.selected { border-color: #667eea; background: #eef2ff; box-shadow: inset 0 0 0 1px rgba(102,126,234,0.15); }
+  .overview-slot.empty-slot { border-style: dashed; background: #fafbfc; color: #b1b7c4; }
+  .overview-slot-main { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .overview-swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; border: 1px solid #ddd; flex-shrink: 0; }
+  .overview-slot-text { display: flex; align-items: center; gap: 6px; min-width: 0; }
+  .overview-tag-id { font-family: 'Bahnschrift', 'DIN Alternate', 'Segoe UI', sans-serif; font-size: 15px; font-weight: 600; color: #444; letter-spacing: 0.3px; }
+  .overview-tag-color { font-size: 12px; color: #555; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .overview-tag-num { min-width: 28px; font-size: 18px; font-weight: 700; text-align: right; }
+  .overview-empty-label { font-size: 12px; letter-spacing: 1px; }
+
+  .reset-btn { display: block; margin: 24px auto 0; padding: 8px 20px; border-radius: 10px; border: 1px solid #e0e0e0; background: #fff; font-size: 11px; color: #999; cursor: pointer; }
+  .empty-msg { text-align: center; padding: 40px 0; color: #ccc; font-size: 13px; }
+
+  @media (max-width: 700px) {
+    .container { max-width: 100%; }
+    .overview-head { flex-direction: column; }
+    .overview-actions { width: 100%; }
+    .overview-btn { flex: 1; }
+  }
+
+  @media (max-width: 520px) {
+    .stock-table th:nth-child(3), .stock-table td:nth-child(3) { width: 52%; }
+    .overview-slot { width: 144px; min-height: 50px; padding: 8px; }
+    .overview-board { grid-template-columns: repeat(3, 144px); }
+    .overview-tag-num { font-size: 17px; }
+  }
+
+  @media (max-width: 400px) {
+    .stock-table td, .stock-table th { padding: 8px 6px; font-size: 12px; }
+    .qty-input { width: 36px; }
+    .btn-sm { min-width: 28px; height: 28px; font-size: 13px; }
+    .overview-slot { width: 136px; }
+    .overview-board { grid-template-columns: repeat(3, 136px); }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div style="max-width:920px;margin:0 auto;">
+    <div class="header-sub">INVENTORY MANAGER</div>
+    <h1>PVC成品料库存管理</h1>
+    <div class="header-info" id="headerInfo">加载中...</div>
+  </div>
+</div>
+
+<div style="max-width:920px;margin:0 auto;padding:0 12px;">
+  <div class="search-bar">
+    <input class="search-input" id="searchInput" placeholder="搜索编号或颜色..." oninput="render()">
+    <button class="btn-add" onclick="openAddModal()">+</button>
+  </div>
+</div>
+
+<div class="container">
+  <div id="tableWrapper"></div>
+  <div class="overview" id="overview"></div>
+  <button class="reset-btn" onclick="resetAll()">重置所有数据</button>
+  <input type="file" id="importFileInput" accept=".json" style="display:none;" onchange="importData(event)">
+</div>
+
+<div class="modal-overlay" id="addModal">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h3>添加新品种</h3>
+    <label>编号</label>
+    <input type="text" id="newId" placeholder="如 PVC-009">
+    <label>颜色名称</label>
+    <input type="text" id="newColor" placeholder="如 粉色">
+    <label>颜色标识</label>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:4px;">
+      <input type="color" id="newColorHex" value="#666666">
+      <span id="colorHexLabel" style="font-size:12px;color:#999;font-family:monospace;">#666666</span>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-confirm" onclick="addProduct()">确认添加</button>
+      <button class="btn-cancel" onclick="closeAddModal()">取消</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="logModal" onclick="closeLogModal()">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:440px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <div>
+        <h3 id="logTitle" style="margin-bottom:2px;"></h3>
+        <div id="logSubtitle" style="font-size:11px;color:#999;"></div>
+      </div>
+      <button onclick="closeLogModal()" style="width:30px;height:30px;border-radius:8px;border:1px solid #e0e0e0;background:#fafafa;cursor:pointer;font-size:14px;color:#999;">X</button>
+    </div>
+    <div class="log-list" id="logList"></div>
+  </div>
+</div>
+
+<script>
+const DEFAULT_PRODUCTS = [
+  { id: 'PVC-001', color: '白色', hex: '#f0f0f0', stock: 0 },
+  { id: 'PVC-002', color: '黑色', hex: '#333333', stock: 0 },
+  { id: 'PVC-003', color: '灰色', hex: '#999999', stock: 0 },
+  { id: 'PVC-004', color: '米黄', hex: '#f5deb3', stock: 0 },
+  { id: 'PVC-005', color: '蓝色', hex: '#4a90d9', stock: 0 },
+  { id: 'PVC-006', color: '绿色', hex: '#5cb85c', stock: 0 },
+  { id: 'PVC-007', color: '红色', hex: '#d9534f', stock: 0 },
+  { id: 'PVC-008', color: '黄色', hex: '#f0ad4e', stock: 0 }
+];
+const OVERVIEW_ROWS = 3;
+const EMPTY_SLOT_PREFIX = '__empty__-';
+const MIN_EMPTY_SLOTS = 3;
+
+let products = [];
+let logs = [];
+let overviewOrder = [];
+let draggingOverviewId = '';
+let selectedOverviewId = '';
+let overviewEmptySeed = 0;
+const IS_TOUCH_DEVICE = (typeof window !== 'undefined') && (
+  'ontouchstart' in window ||
+  (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ||
+  (navigator && navigator.maxTouchPoints > 0)
+);
+
+function storageGet(key) {
+  try {
+    return window.localStorage.getItem(key);
+  } catch (error) {
+    return null;
+  }
+}
+
+function storageSet(key, value) {
+  try {
+    window.localStorage.setItem(key, value);
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+function storageRemove(key) {
+  try {
+    window.localStorage.removeItem(key);
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+function cloneDefaults() {
+  return JSON.parse(JSON.stringify(DEFAULT_PRODUCTS));
+}
+
+function getProductSortValue(id) {
+  const match = String(id).match(/(\d+)/);
+  return match ? parseInt(match[1], 10) : Number.MAX_SAFE_INTEGER;
+}
+
+function compareProducts(a, b) {
+  const diff = getProductSortValue(a.id) - getProductSortValue(b.id);
+  return diff || String(a.id).localeCompare(String(b.id));
+}
+
+function getSortedProductIds() {
+  return products.slice().sort(compareProducts).map(product => product.id);
+}
+
+function isEmptySlot(id) {
+  return typeof id === 'string' && id.indexOf(EMPTY_SLOT_PREFIX) === 0;
+}
+
+function createEmptySlotId() {
+  overviewEmptySeed += 1;
+  return `${EMPTY_SLOT_PREFIX}${overviewEmptySeed}`;
+}
+
+function updateEmptySeedFromOrder() {
+  overviewOrder.forEach(id => {
+    if (!isEmptySlot(id)) return;
+    const value = parseInt(id.slice(EMPTY_SLOT_PREFIX.length), 10);
+    if (!Number.isNaN(value)) {
+      overviewEmptySeed = Math.max(overviewEmptySeed, value);
+    }
+  });
+}
+
+function ensureMinimumEmptySlots() {
+  const emptyCount = overviewOrder.filter(isEmptySlot).length;
+  for (let i = emptyCount; i < MIN_EMPTY_SLOTS; i += 1) {
+    overviewOrder.push(createEmptySlotId());
+  }
+}
+
+function syncOverviewOrder() {
+  const validIds = new Set(products.map(product => product.id));
+  const nextOrder = [];
+  const seenProducts = new Set();
+
+  if (Array.isArray(overviewOrder)) {
+    overviewOrder.forEach(id => {
+      if (isEmptySlot(id)) {
+        nextOrder.push(id);
+        return;
+      }
+      if (validIds.has(id) && !seenProducts.has(id)) {
+        nextOrder.push(id);
+        seenProducts.add(id);
+      }
+    });
+  }
+
+  getSortedProductIds().forEach(id => {
+    if (!seenProducts.has(id)) {
+      nextOrder.push(id);
+      seenProducts.add(id);
+    }
+  });
+
+  overviewOrder = nextOrder;
+  updateEmptySeedFromOrder();
+  ensureMinimumEmptySlots();
+
+  if (selectedOverviewId && !overviewOrder.includes(selectedOverviewId)) {
+    selectedOverviewId = '';
+  }
+  if (draggingOverviewId && !overviewOrder.includes(draggingOverviewId)) {
+    draggingOverviewId = '';
+  }
+}
+
+function load() {
+  try {
+    const storedProducts = storageGet('pvc-products');
+    const storedLogs = storageGet('pvc-logs');
+    const storedOverviewOrder = storageGet('pvc-overview-order');
+    products = storedProducts ? JSON.parse(storedProducts) : cloneDefaults();
+    logs = storedLogs ? JSON.parse(storedLogs) : [];
+    overviewOrder = storedOverviewOrder ? JSON.parse(storedOverviewOrder) : [];
+  } catch (error) {
+    products = cloneDefaults();
+    logs = [];
+    overviewOrder = [];
+  }
+  syncOverviewOrder();
+}
+
+function save() {
+  syncOverviewOrder();
+  storageSet('pvc-products', JSON.stringify(products));
+  storageSet('pvc-logs', JSON.stringify(logs));
+  storageSet('pvc-overview-order', JSON.stringify(overviewOrder));
+}
+
+function getExportFileStamp() {
+  const d = new Date();
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+}
+
+function buildExportData() {
+  syncOverviewOrder();
+  return {
+    app: 'PVC库存管理',
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    products,
+    logs,
+    overviewOrder
+  };
+}
+
+function downloadTextFile(filename, text, mimeType) {
+  const blob = new Blob([text], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function exportData() {
+  const data = buildExportData();
+  downloadTextFile(
+    `PVC库存数据_${getExportFileStamp()}.json`,
+    JSON.stringify(data, null, 2),
+    'application/json;charset=utf-8'
+  );
+}
+
+function triggerImport() {
+  const input = document.getElementById('importFileInput');
+  if (!input) return;
+  input.value = '';
+  input.click();
+}
+
+function normalizeImportedProduct(item, index) {
+  if (!item || typeof item !== 'object') {
+    throw new Error(`第 ${index + 1} 条产品数据格式不正确`);
+  }
+
+  const id = String(item.id || '').trim();
+  const color = String(item.color || '').trim();
+  const hexText = String(item.hex || '').trim();
+  const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(hexText) ? hexText : '#666666';
+  const stock = Math.max(0, parseInt(item.stock, 10) || 0);
+
+  if (!id || !color) {
+    throw new Error(`第 ${index + 1} 条产品缺少编号或颜色名称`);
+  }
+
+  return { id, color, hex, stock };
+}
+
+function normalizeImportedLog(item, validIds) {
+  if (!item || typeof item !== 'object') return null;
+
+  const productId = String(item.productId || '').trim();
+  if (!validIds.has(productId)) return null;
+
+  const amount = parseInt(item.amount, 10) || 0;
+  const before = Math.max(0, parseInt(item.before, 10) || 0);
+  const after = Math.max(0, parseInt(item.after, 10) || 0);
+  const timestamp = Number(item.timestamp);
+
+  return {
+    productId,
+    amount,
+    before,
+    after,
+    timestamp: Number.isFinite(timestamp) ? timestamp : Date.now()
+  };
+}
+
+function applyImportedData(data) {
+  const rawProducts = Array.isArray(data) ? data : Array.isArray(data && data.products) ? data.products : null;
+  if (!rawProducts) {
+    throw new Error('文件格式不正确，请导入通过本页面导出的 JSON 文件');
+  }
+
+  const nextProducts = rawProducts.map((item, index) => normalizeImportedProduct(item, index));
+  const productIds = nextProducts.map(item => item.id);
+  const uniqueIds = new Set(productIds);
+  if (uniqueIds.size !== productIds.length) {
+    throw new Error('导入文件中存在重复编号，请检查后重试');
+  }
+
+  const validIds = new Set(productIds);
+  const nextLogs = Array.isArray(data && data.logs)
+    ? data.logs.map(item => normalizeImportedLog(item, validIds)).filter(Boolean)
+    : [];
+  const nextOverviewOrder = Array.isArray(data && data.overviewOrder)
+    ? data.overviewOrder.filter(item => typeof item === 'string')
+    : [];
+
+  if (!confirm('导入会覆盖当前页面里的库存、记录和库位布局，是否继续？')) {
+    return;
+  }
+
+  products = nextProducts;
+  logs = nextLogs;
+  overviewOrder = nextOverviewOrder;
+  selectedOverviewId = '';
+  draggingOverviewId = '';
+  overviewEmptySeed = 0;
+  save();
+  render();
+  alert(`导入成功：${products.length} 个品种，${logs.length} 条记录`);
+}
+
+function importData(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const parsed = JSON.parse(String(reader.result || ''));
+      applyImportedData(parsed);
+    } catch (error) {
+      alert(`导入失败：${error && error.message ? error.message : '文件无法识别'}`);
+    } finally {
+      event.target.value = '';
+    }
+  };
+  reader.onerror = () => {
+    alert('读取导入文件失败，请重试');
+    event.target.value = '';
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+function fmtTime(ts) {
+  const d = new Date(ts);
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function adjustStock(id, delta) {
+  const product = products.find(item => item.id === id);
+  if (!product) return;
+
+  const inputEl = document.getElementById(`qty-${id}`);
+  const amount = Math.max(1, parseInt(inputEl ? inputEl.value : 1, 10) || 1);
+  const actualDelta = delta > 0 ? amount : -amount;
+  const before = product.stock;
+  product.stock = Math.max(0, product.stock + actualDelta);
+  const after = product.stock;
+
+  if (before !== after) {
+    logs.push({ productId: id, amount: after - before, before, after, timestamp: Date.now() });
+    save();
+  }
+
+  render();
+}
+
+function deleteProduct(id) {
+  const product = products.find(item => item.id === id);
+  if (!product) return;
+
+  const confirmed = confirm(`确定删除 ${product.id} ${product.color} 吗？库存和记录会一起删除。`);
+  if (!confirmed) return;
+
+  products = products.filter(item => item.id !== id);
+  logs = logs.filter(item => item.productId !== id);
+  save();
+  render();
+}
+
+function swapOverviewPositions(sourceId, targetId) {
+  if (!sourceId || !targetId || sourceId === targetId) return;
+  syncOverviewOrder();
+
+  const sourceIndex = overviewOrder.indexOf(sourceId);
+  const targetIndex = overviewOrder.indexOf(targetId);
+  if (sourceIndex === -1 || targetIndex === -1) return;
+
+  const temp = overviewOrder[sourceIndex];
+  overviewOrder[sourceIndex] = overviewOrder[targetIndex];
+  overviewOrder[targetIndex] = temp;
+  save();
+  render();
+}
+
+function handleOverviewDragStart(event, id) {
+  if (isEmptySlot(id)) return;
+  draggingOverviewId = id;
+  selectedOverviewId = '';
+  event.dataTransfer.effectAllowed = 'move';
+  event.dataTransfer.setData('text/plain', id);
+}
+
+function handleOverviewDragOver(event) {
+  event.preventDefault();
+  event.dataTransfer.dropEffect = 'move';
+}
+
+function handleOverviewDrop(event, targetId) {
+  event.preventDefault();
+  const sourceId = draggingOverviewId || event.dataTransfer.getData('text/plain');
+  draggingOverviewId = '';
+  swapOverviewPositions(sourceId, targetId);
+}
+
+function handleOverviewDragEnd() {
+  draggingOverviewId = '';
+}
+
+function selectOverviewSlot(id) {
+  if (!id) return;
+
+  if (selectedOverviewId && selectedOverviewId !== id) {
+    const sourceId = selectedOverviewId;
+    selectedOverviewId = '';
+    swapOverviewPositions(sourceId, id);
+    return;
+  }
+
+  selectedOverviewId = selectedOverviewId === id ? '' : id;
+  render();
+}
+
+function resetOverviewLayout() {
+  overviewOrder = getSortedProductIds();
+  selectedOverviewId = '';
+  save();
+  render();
+}
+
+function addEmptySlot() {
+  overviewOrder.push(createEmptySlotId());
+  save();
+  render();
+}
+
+function clearTrailingEmptySlots() {
+  syncOverviewOrder();
+  while (overviewOrder.length > 0 && isEmptySlot(overviewOrder[overviewOrder.length - 1]) && overviewOrder.filter(isEmptySlot).length > MIN_EMPTY_SLOTS) {
+    overviewOrder.pop();
+  }
+  save();
+  render();
+}
+
+function render() {
+  syncOverviewOrder();
+
+  const search = document.getElementById('searchInput').value.trim().toLowerCase();
+  const filtered = products
+    .filter(product => !search || product.id.toLowerCase().includes(search) || product.color.toLowerCase().includes(search))
+    .slice()
+    .sort(compareProducts);
+  const total = products.reduce((sum, product) => sum + product.stock, 0);
+
+  document.getElementById('headerInfo').textContent = `共 ${products.length} 个品种 · 总库存 ${total} 袋`;
+
+  let tableHtml = '';
+  if (filtered.length === 0) {
+    tableHtml = `<div class="empty-msg">${search ? `没有找到 “${escapeHtml(search)}” 相关的产品` : '暂无产品'}</div>`;
+  } else {
+    tableHtml = `<table class="stock-table">
+      <thead><tr>
+        <th style="width:35%">品种</th>
+        <th style="width:13%">库存</th>
+        <th style="width:52%">操作</th>
+      </tr></thead><tbody>`;
+
+    filtered.forEach(product => {
+      const stockClass = product.stock === 0 ? 'stock-zero' : product.stock < 10 ? 'stock-low' : 'stock-ok';
+      const safeId = escapeHtml(product.id);
+      const safeColor = escapeHtml(product.color);
+      const safeHex = escapeHtml(product.hex);
+
+      tableHtml += `<tr>
+        <td>
+          <span class="color-dot" style="background:${safeHex}"></span>
+          <span style="font-weight:600;">${safeColor}</span>
+          <span class="id-text">${safeId}</span>
+        </td>
+        <td><span class="stock-num ${stockClass}">${product.stock}</span><br><span style="font-size:10px;color:#999;">袋</span></td>
+        <td>
+          <div class="btn-group">
+            <button class="btn-sm btn-minus" onclick="adjustStock('${safeId}', -1)">-</button>
+            <input class="qty-input" type="number" id="qty-${safeId}" value="1" min="1">
+            <button class="btn-sm btn-plus" onclick="adjustStock('${safeId}', 1)">+</button>
+            <button class="btn-sm btn-log" onclick="openLogModal('${safeId}')">记录</button>
+            <button class="btn-sm btn-delete" onclick="deleteProduct('${safeId}')">删除</button>
+          </div>
+        </td>
+      </tr>`;
+    });
+
+    tableHtml += '</tbody></table>';
+  }
+  document.getElementById('tableWrapper').innerHTML = tableHtml;
+
+  const tipText = selectedOverviewId
+    ? '已选中一个位置，再点另一个位置即可互换。'
+    : (IS_TOUCH_DEVICE ? '手机模式已启用：轻点两个位置可互换，不使用拖拽。' : '固定三排显示。电脑可拖到空位或别的位置，手机可点两个位置互换。');
+
+  let overviewHtml = `
+    <div class="overview-head">
+      <div>
+        <h4>库存概览</h4>
+        <div class="overview-tip">${tipText}</div>
+      </div>
+      <div class="overview-actions">
+        <button class="overview-btn" onclick="exportData()">导出数据</button>
+        <button class="overview-btn" onclick="triggerImport()">导入数据</button>
+        <button class="overview-btn" onclick="addEmptySlot()">增加空位</button>
+        <button class="overview-btn" onclick="clearTrailingEmptySlots()">清理尾部空位</button>
+        <button class="overview-btn" onclick="resetOverviewLayout()">恢复编号顺序</button>
+      </div>
+    </div>`;
+
+  if (overviewOrder.length === 0) {
+    overviewHtml += '<div class="empty-msg">暂无产品</div>';
+  } else {
+    const columns = OVERVIEW_ROWS;
+    const rows = Math.max(1, Math.ceil(overviewOrder.length / columns));
+    overviewHtml += `<div class="overview-board-wrap"><div class="overview-board" style="grid-template-rows: repeat(${rows}, minmax(54px, auto));">`;
+
+    overviewOrder.forEach((slotId, index) => {
+      const row = index % rows + 1;
+      const column = Math.floor(index / rows) + 1;
+      const isSelected = selectedOverviewId === slotId ? ' selected' : '';
+      const product = products.find(item => item.id === slotId);
+
+      if (product) {
+        const numClass = product.stock < 10 ? 'stock-low' : '';
+        const safeId = escapeHtml(product.id);
+        const dragAttrs = IS_TOUCH_DEVICE
+          ? ''
+          : ` draggable="true" ondragstart="handleOverviewDragStart(event, '${safeId}')" ondragover="handleOverviewDragOver(event)" ondrop="handleOverviewDrop(event, '${safeId}')" ondragend="handleOverviewDragEnd()"`;
+        overviewHtml += `<button type="button" class="overview-slot product-slot${isSelected}" style="grid-row:${row};grid-column:${column};"${dragAttrs} onclick="selectOverviewSlot('${safeId}')">
+          <span class="overview-slot-main">
+            <span class="overview-swatch" style="background:${escapeHtml(product.hex)};"></span>
+            <span class="overview-slot-text">
+              <span class="overview-tag-color">${escapeHtml(product.color)}</span>
+              <span class="overview-tag-id">${safeId}</span>
+            </span>
+          </span>
+          <span class="overview-tag-num ${numClass}">${product.stock}</span>
+        </button>`;
+      } else {
+        const safeSlotId = escapeHtml(slotId);
+        const emptyDragAttrs = IS_TOUCH_DEVICE
+          ? ''
+          : ` ondragover="handleOverviewDragOver(event)" ondrop="handleOverviewDrop(event, '${safeSlotId}')"`;
+        overviewHtml += `<button type="button" class="overview-slot empty-slot${isSelected}" style="grid-row:${row};grid-column:${column};"${emptyDragAttrs} onclick="selectOverviewSlot('${safeSlotId}')">
+          <span class="overview-empty-label">空位</span>
+        </button>`;
+      }
+    });
+
+    overviewHtml += '</div></div>';
+  }
+  document.getElementById('overview').innerHTML = overviewHtml;
+}
+
+function openAddModal() {
+  document.getElementById('addModal').classList.add('active');
+}
+
+function closeAddModal() {
+  document.getElementById('addModal').classList.remove('active');
+  document.getElementById('newId').value = '';
+  document.getElementById('newColor').value = '';
+  document.getElementById('newColorHex').value = '#666666';
+  document.getElementById('colorHexLabel').textContent = '#666666';
+}
+
+document.getElementById('newColorHex').addEventListener('input', function() {
+  document.getElementById('colorHexLabel').textContent = this.value;
+});
+
+document.getElementById('addModal').addEventListener('click', closeAddModal);
+
+function addProduct() {
+  const id = document.getElementById('newId').value.trim();
+  const color = document.getElementById('newColor').value.trim();
+  const hex = document.getElementById('newColorHex').value;
+
+  if (!id || !color) {
+    alert('请填写编号和颜色名称');
+    return;
+  }
+
+  if (products.find(product => product.id === id)) {
+    alert('该编号已存在');
+    return;
+  }
+
+  products.push({ id, color, hex, stock: 0 });
+  save();
+  closeAddModal();
+  render();
+}
+
+function openLogModal(id) {
+  const product = products.find(item => item.id === id);
+  if (!product) return;
+
+  document.getElementById('logTitle').textContent = `${product.color} 操作记录`;
+  document.getElementById('logSubtitle').textContent = product.id;
+
+  const filteredLogs = logs.filter(item => item.productId === id).slice(-50).reverse();
+  let logHtml = '';
+
+  if (filteredLogs.length === 0) {
+    logHtml = '<div class="empty-msg">暂无操作记录</div>';
+  } else {
+    filteredLogs.forEach(item => {
+      const cls = item.amount > 0 ? 'log-amount-pos' : 'log-amount-neg';
+      const sign = item.amount > 0 ? '+' : '';
+      logHtml += `<div class="log-item">
+        <div>
+          <div class="${cls}">${sign}${item.amount} 袋</div>
+          <div class="log-detail">${item.before} → ${item.after}</div>
+        </div>
+        <div class="log-time">${fmtTime(item.timestamp)}</div>
+      </div>`;
+    });
+  }
+
+  document.getElementById('logList').innerHTML = logHtml;
+  document.getElementById('logModal').classList.add('active');
+}
+
+function closeLogModal() {
+  document.getElementById('logModal').classList.remove('active');
+}
+
+function resetAll() {
+  if (!confirm('确定要清空所有数据吗？此操作不可撤销。')) {
+    return;
+  }
+
+  storageRemove('pvc-products');
+  storageRemove('pvc-logs');
+  storageRemove('pvc-overview-order');
+  products = cloneDefaults();
+  logs = [];
+  overviewOrder = [];
+  selectedOverviewId = '';
+  draggingOverviewId = '';
+  overviewEmptySeed = 0;
+  render();
+}
+
+function showFatalError(error) {
+  const message = error && error.message ? error.message : '未知错误';
+  const wrapper = document.getElementById('tableWrapper');
+  const overview = document.getElementById('overview');
+  const headerInfo = document.getElementById('headerInfo');
+
+  if (headerInfo) {
+    headerInfo.textContent = '页面加载失败';
+  }
+  if (wrapper) {
+    wrapper.innerHTML = `<div class="empty-msg" style="color:#d9534f;line-height:1.8;">页面加载失败，请刷新重试。<br>${escapeHtml(message)}</div>`;
+  }
+  if (overview) {
+    overview.innerHTML = '<div class="empty-msg">如果是在 iPhone 上打开，请重新从浏览器打开这个 HTML 文件。</div>';
+  }
+}
+
+function registerServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+  if (window.location.protocol === 'file:') return;
+
+  navigator.serviceWorker.register('sw.js').catch(error => {
+    console.error('Service Worker 注册失败', error);
+  });
+}
+
+function initApp() {
+  try {
+    load();
+    render();
+    registerServiceWorker();
+  } catch (error) {
+    console.error(error);
+    showFatalError(error);
+  }
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initApp, { once: true });
+} else {
+  initApp();
+}
+</script>
+</body>
+</html>
+
+
+
+
+
+
