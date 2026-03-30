@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = 'pvc-inventory-pwa-v1';
+﻿const CACHE_NAME = 'pvc-inventory-pwa-v2';
 const APP_SHELL = [
   './',
   'index.html',
@@ -28,21 +28,36 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
 
+  const isDocumentRequest = event.request.mode === 'navigate' || event.request.destination === 'document';
+
+  if (isDocumentRequest) {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          if (response && response.status === 200) {
+            const responseClone = response.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put('index.html', responseClone));
+          }
+          return response;
+        })
+        .catch(() => caches.match(event.request).then(cached => cached || caches.match('index.html')))
+    );
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request).then(cached => {
       if (cached) return cached;
 
-      return fetch(event.request)
-        .then(response => {
-          if (!response || response.status !== 200) {
-            return response;
-          }
-
-          const responseClone = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, responseClone));
+      return fetch(event.request).then(response => {
+        if (!response || response.status !== 200) {
           return response;
-        })
-        .catch(() => caches.match('index.html'));
+        }
+
+        const responseClone = response.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(event.request, responseClone));
+        return response;
+      });
     })
   );
 });
