@@ -84,6 +84,11 @@
   .overview-slot.product-slot { cursor: grab; }
   .overview-slot.product-slot:active { cursor: grabbing; }
   .overview-slot.selected { border-color: #667eea; background: #eef2ff; box-shadow: inset 0 0 0 1px rgba(102,126,234,0.15); }
+  .overview-slot.search-match { border-color: #ffb347; background: #fff6df; box-shadow: 0 0 0 2px rgba(255,179,71,0.18); }
+  .overview-slot.search-match .overview-tag-color,
+  .overview-slot.search-match .overview-tag-id,
+  .overview-slot.search-match .overview-tag-num { color: #8a4b00; }
+  .overview-slot.search-match.selected { border-color: #ff9f1c; background: #fff0cc; box-shadow: 0 0 0 2px rgba(255,159,28,0.22), inset 0 0 0 1px rgba(255,159,28,0.16); }
   .overview-slot.empty-slot { border-style: dashed; background: #fafbfc; color: #b1b7c4; }
   .overview-slot-main { display: flex; align-items: center; gap: 8px; min-width: 0; }
   .overview-swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; border: 1px solid #ddd; flex-shrink: 0; }
@@ -852,12 +857,14 @@ function render() {
       const product = products.find(item => item.id === slotId);
 
       if (product) {
+        const matchesSearch = !!search && (product.id.toLowerCase().includes(search) || product.color.toLowerCase().includes(search));
+        const matchClass = matchesSearch ? ' search-match' : '';
         const numClass = product.stock < 10 ? 'stock-low' : '';
         const safeId = escapeHtml(product.id);
         const dragAttrs = isCompactMobile
           ? ''
           : ` draggable="true" ondragstart="handleOverviewDragStart(event, '${safeId}')" ondragover="handleOverviewDragOver(event)" ondrop="handleOverviewDrop(event, '${safeId}')" ondragend="handleOverviewDragEnd()"`;
-        overviewHtml += `<button type="button" class="${slotClass} product-slot${isSelected}" style="grid-row:${row};grid-column:${column};"${dragAttrs} onclick="selectOverviewSlot('${safeId}')">
+        overviewHtml += `<button type="button" class="${slotClass} product-slot${matchClass}${isSelected}" style="grid-row:${row};grid-column:${column};"${dragAttrs} onclick="selectOverviewSlot('${safeId}')">
           <span class="${slotMainClass}">
             <span class="${swatchClass}" style="background:${escapeHtml(product.hex)};"></span>
             <span class="${slotTextClass}">
